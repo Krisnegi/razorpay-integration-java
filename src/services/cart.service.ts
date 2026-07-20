@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/error';
 
 export class CartService {
-  private static async getOrCreateCart(cartId?: string) {
+  private static async getOrCreateCart(cartId?: string, userId?: number) {
     if (cartId) {
       const existingCart = await prisma.cart.findUnique({
         where: { id: cartId },
@@ -17,12 +17,20 @@ export class CartService {
       });
 
       if (existingCart) {
+        if (userId && existingCart.userId !== userId) {
+          await prisma.cart.update({
+            where: { id: existingCart.id },
+            data: { userId },
+          });
+        }
         return existingCart;
       }
     }
 
     return await prisma.cart.create({
-      data: {},
+      data: {
+        userId: userId || null,
+      },
       include: {
         items: {
           include: {
@@ -34,12 +42,12 @@ export class CartService {
     });
   }
 
-  public static async getCart(cartId?: string) {
-    const cart = await this.getOrCreateCart(cartId);
+  public static async getCart(cartId?: string, userId?: number) {
+    const cart = await this.getOrCreateCart(cartId, userId);
     return this.formatCartResponse(cart);
   }
 
-  public static async addItem(cartId: string | undefined, productId: number, quantity: number) {
+  public static async addItem(cartId: string | undefined, productId: number, quantity: number, userId?: number) {
     const product = await prisma.product.findUnique({
       where: { id: productId },
     });
@@ -48,7 +56,7 @@ export class CartService {
       throw new AppError(`Product with ID ${productId} not found`, 404);
     }
 
-    const cart = await this.getOrCreateCart(cartId);
+    const cart = await this.getOrCreateCart(cartId, userId);
 
     const existingItem = await prisma.cartItem.findUnique({
       where: {

@@ -309,6 +309,43 @@ curl -s -H "Authorization: Bearer <JWT_TOKEN>" http://localhost:5005/api/auth/me
 ```
 * **Output:** Returned user profile `{"status":"success","data":{"id":1,"name":"Alice Cooper","email":"alice@example.com","role":"CUSTOMER"}}`.
 
+---
+
+# Phase 6 Walkthrough: Past Order History & User Order Association
+
+We have completed Phase 6 (Optional authentication middleware, associating User IDs to Carts and Orders, User Order History API, and cross-user order ownership security).
+
+## What Was Built in Phase 6
+
+1. **`optionalAuthenticate` Middleware:** Created `optionalAuthenticate` in `src/middleware/auth.ts` to inspect incoming `Authorization: Bearer <token>` headers without forcing guest users to authenticate.
+2. **User Order Association:** Updated `src/services/order.service.ts` and `src/services/cart.service.ts` to automatically save `userId` on new Carts and Orders when an authenticated token is present.
+3. **Past Order History Endpoint:** Implemented `GET /api/orders/my-orders` in `src/routes/order.routes.ts` protected by `authenticate` middleware, returning paginated past orders for the logged-in user.
+4. **Order Ownership Security:** Added authorization checks to `getOrderById` in `src/services/order.service.ts` to ensure users cannot view another user's order details.
+
+---
+
+## Verification Test Runs & Output Logs
+
+### 1. Authenticated Order Checkout (`POST /api/orders/checkout` with Bearer Token)
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "x-cart-id: 102a4f44-05f4-4fc7-9a86-5c908612bd59" -H "Authorization: Bearer <ALICE_JWT_TOKEN>" -d '{"paymentMethod": "COD", "customerEmail": "alice@example.com", "customerPhone": "9876543210", "shippingAddress": "456 Silicon Avenue, Bengaluru"}' http://localhost:5005/api/orders/checkout
+```
+* **Output:** Order `ORD-1784560097970-BA0BB8` created successfully and associated with `"userId": 1`.
+
+### 2. Fetch User Order History (`GET /api/orders/my-orders` with Bearer Token)
+```bash
+curl -s -H "Authorization: Bearer <ALICE_JWT_TOKEN>" http://localhost:5005/api/orders/my-orders
+```
+* **Output:** Returned Alice's past orders with items, line totals, payment status, and pagination metadata (`{ page: 1, limit: 10, totalOrders: 1, totalPages: 1 }`).
+
+### 3. Cross-User Order Ownership Security Check
+* Attempted to access Alice's Order ID 3 while logged in as Bob:
+```bash
+curl -s -H "Authorization: Bearer <BOB_JWT_TOKEN>" http://localhost:5005/api/orders/3
+```
+* **Output:** Returned `{"status":"error","message":"You do not have permission to view this order"}` with HTTP 403 status.
+
+
 
 
 

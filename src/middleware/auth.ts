@@ -34,3 +34,20 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     throw new AppError('Invalid or expired authentication token', 401);
   }
 };
+
+export const optionalAuthenticate = (req: Request, _res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const secret = process.env.JWT_SECRET || 'fallback_secret';
+      const decoded = jwt.verify(token, secret) as JwtPayload;
+      req.user = decoded;
+    } catch (error) {
+      // Ignore invalid token in optional auth and proceed as guest
+    }
+  }
+
+  next();
+};

@@ -5,7 +5,8 @@ export class CartController {
   public static async getCart(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const cartId = req.headers['x-cart-id'] as string | undefined;
-      const cart = await CartService.getCart(cartId);
+      const userId = req.user?.userId;
+      const cart = await CartService.getCart(cartId, userId);
 
       res.status(200).json({
         status: 'success',
@@ -19,9 +20,10 @@ export class CartController {
   public static async addItem(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const cartId = req.headers['x-cart-id'] as string | undefined;
+      const userId = req.user?.userId;
       const { productId, quantity } = req.body;
 
-      const cart = await CartService.addItem(cartId, productId, quantity);
+      const cart = await CartService.addItem(cartId, productId, quantity, userId);
 
       res.status(200).json({
         status: 'success',

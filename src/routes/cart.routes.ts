@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { CartController } from '../controllers/cart.controller';
 import { validate } from '../middleware/validate';
+import { optionalAuthenticate } from '../middleware/auth';
 import {
   getCartHeaderSchema,
   addToCartSchema,
@@ -10,6 +11,8 @@ import {
 } from '../schemas/cart.schema';
 
 const router = Router();
+
+router.use(optionalAuthenticate);
 
 router.get('/', validate(getCartHeaderSchema), CartController.getCart);
 router.post('/items', validate(addToCartSchema), CartController.addItem);

@@ -11,8 +11,9 @@ export class OrderService {
     customerPhone?: string | null;
     shippingAddress?: string | null;
     paymentMethod: PaymentMethod;
+    userId?: number;
   }) {
-    const { cartId, customerEmail, customerPhone, shippingAddress, paymentMethod } = data;
+    const { cartId, customerEmail, customerPhone, shippingAddress, paymentMethod, userId } = data;
 
     const cart = await prisma.cart.findUnique({
       where: { id: cartId },
@@ -50,6 +51,7 @@ export class OrderService {
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
+          userId: userId || null,
           cartId,
           customerEmail,
           customerPhone,
@@ -114,6 +116,7 @@ export class OrderService {
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
+      userId: order.userId,
       totalAmount: Number(order.totalAmount),
       status: order.status,
       paymentMethod: order.paymentMethod,
@@ -129,7 +132,68 @@ export class OrderService {
     };
   }
 
-  public static async getOrderById(id: number) {
+  public static async getMyOrders(userId: number, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [orders, totalOrders] = await Promise.all([
+      prisma.order.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          payment: true,
+        },
+      }),
+      prisma.order.count({
+        where: { userId },
+      }),
+    ]);
+
+    const formattedOrders = orders.map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      totalAmount: Number(order.totalAmount),
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      shippingAddress: order.shippingAddress,
+      createdAt: order.createdAt,
+      items: order.items.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        name: item.product.name,
+        price: Number(item.price),
+        quantity: item.quantity,
+        imageUrl: item.product.imageUrl,
+        itemTotal: Number(item.price) * item.quantity,
+      })),
+      payment: order.payment
+        ? {
+            orderId: order.payment.orderId,
+            paymentId: order.payment.paymentId,
+            status: order.payment.status,
+            method: order.payment.method,
+          }
+        : null,
+    }));
+
+    return {
+      orders: formattedOrders,
+      pagination: {
+        page,
+        limit,
+        totalOrders,
+        totalPages: Math.ceil(totalOrders / limit) || 1,
+      },
+    };
+  }
+
+  public static async getOrderById(id: number, requestingUserId?: number) {
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -146,9 +210,15 @@ export class OrderService {
       throw new AppError(`Order with ID ${id} not found`, 404);
     }
 
+    // Authorization check: If order has a userId assigned, ensure requesting user matches
+    if (order.userId && requestingUserId && order.userId !== requestingUserId) {
+      throw new AppError('You do not have permission to view this order', 403);
+    }
+
     return {
       id: order.id,
       orderNumber: order.orderNumber,
+      userId: order.userId,
       customerEmail: order.customerEmail,
       customerPhone: order.customerPhone,
       shippingAddress: order.shippingAddress,

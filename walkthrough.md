@@ -142,3 +142,56 @@ curl -s "http://localhost:5005/api/products/999"
 ```
 * **Output:** Returned `{"status":"error","message":"Product with ID 999 not found"}` with HTTP 404 status.
 
+---
+
+# Phase 3 Walkthrough: Cart APIs
+
+We have successfully implemented Phase 3 (Cart database models, stock checking, session cart creation via `x-cart-id`, add/update/remove items, and clear cart endpoints).
+
+## What Was Built in Phase 3
+
+1. **Prisma Cart Models:** Added `Cart` and `CartItem` models to `prisma/schema.prisma` with cascading deletion and relation to `Product`.
+2. **Cart Request Schemas:** `src/schemas/cart.schema.ts` for validating UUID headers, item quantities, and product IDs.
+3. **Cart Service:** `src/services/cart.service.ts` implementing stock verification, automatic cart generation, price & item count calculations.
+4. **Cart Controller & Routes:** `src/controllers/cart.controller.ts` and `src/routes/cart.routes.ts` mounted at `/api/cart`.
+
+---
+
+## Verification Test Runs & Output Logs
+
+### 1. Get Cart (Auto-generates new Cart UUID)
+```bash
+curl -s -X GET http://localhost:5005/api/cart
+```
+* **Output:** `{"status":"success","data":{"cartId":"fe17fce7-814b-4534-8fa7-2466c2e869dc","items":[],"itemCount":0,"totalAmount":0}}`
+
+### 2. Add Products to Cart & Calculate Totals
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" -d '{"productId": 1, "quantity": 2}' http://localhost:5005/api/cart/items
+```
+* **Output:** Added 2 Wireless Headphones (₹4,999 each) -> `totalAmount: 9998`.
+
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" -d '{"productId": 2, "quantity": 1}' http://localhost:5005/api/cart/items
+```
+* **Output:** Added 1 Gaming Keyboard (₹2,999) -> `totalAmount: 12997`.
+
+### 3. Update Item Quantity
+```bash
+curl -s -X PATCH -H "Content-Type: application/json" -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" -d '{"quantity": 3}' http://localhost:5005/api/cart/items/1
+```
+* **Output:** Updated Headphones quantity to 3 -> `itemTotal: 14997`, `totalAmount: 17996`.
+
+### 4. Remove Specific Item
+```bash
+curl -s -X DELETE -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" http://localhost:5005/api/cart/items/2
+```
+* **Output:** Removed Keyboard -> `totalAmount: 14997`.
+
+### 5. Clear Cart
+```bash
+curl -s -X DELETE -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" http://localhost:5005/api/cart
+```
+* **Output:** `{"status":"success","message":"Cart cleared","data":{"cartId":"fe17fce7-814b-4534-8fa7-2466c2e869dc","items":[],"itemCount":0,"totalAmount":0}}`
+
+

@@ -6,6 +6,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import paymentRoutes from './routes/payment.routes';
 import productRoutes from './routes/product.routes';
+import cartRoutes from './routes/cart.routes';
 import { errorHandler } from './middleware/error';
 
 const app = express();
@@ -36,6 +37,7 @@ app.get('/health', (_req, res) => {
 // App Routes
 app.use('/api/payments', paymentRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

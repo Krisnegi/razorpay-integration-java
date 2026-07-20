@@ -194,4 +194,72 @@ curl -s -X DELETE -H "x-cart-id: fe17fce7-814b-4534-8fa7-2466c2e869dc" http://lo
 ```
 * **Output:** `{"status":"success","message":"Cart cleared","data":{"cartId":"fe17fce7-814b-4534-8fa7-2466c2e869dc","items":[],"itemCount":0,"totalAmount":0}}`
 
+---
+
+# Phase 4 Walkthrough: Orders Flow
+
+We have successfully implemented Phase 4 (Order & OrderItem database models, atomic checkout `$transaction`, stock reservation/deduction, item price snapshots, payment linkage, and status synchronization).
+
+## What Was Built in Phase 4
+
+1. **Prisma Order Models:** Added `Order`, `OrderItem`, and `OrderStatus` enum (`PENDING`, `PAID`, `CANCELLED`, `FAILED`) to `prisma/schema.prisma` and linked `Order` to `Payment`.
+2. **Order Request Schemas:** `src/schemas/order.schema.ts` for validating checkout payload and integer order IDs.
+3. **Order Service & Atomic Transaction:** `src/services/order.service.ts` implementing a Prisma `$transaction` that:
+   * Validates stock for all cart items.
+   * Generates a unique readable `orderNumber` (e.g. `ORD-1784551228450-B9C03A`).
+   * Saves fixed price and quantity snapshots in `OrderItem`.
+   * Decrements product inventory stock.
+   * Clears cart items.
+   * Creates Razorpay / COD payment and links `orderRefId`.
+4. **Payment & Order Sync:** Updated `src/services/payment.service.ts` to automatically update connected `Order` status to `PAID` when a payment signature is verified or Razorpay webhook fires `payment.captured`.
+5. **Order Controller & Routes:** `src/controllers/order.controller.ts` and `src/routes/order.routes.ts` mounted at `/api/orders`.
+
+---
+
+## Verification Test Runs & Output Logs
+
+### 1. Checkout Cart into Order (`POST /api/orders/checkout`)
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "x-cart-id: 4029950e-c602-4337-99a7-5698fb0c4ab5" -d '{"paymentMethod": "COD", "customerEmail": "buyer@example.com", "customerPhone": "9876543210", "shippingAddress": "123 Tech Park, Bengaluru"}' http://localhost:5005/api/orders/checkout
+```
+* **Output:** Created Order `ORD-1784551228450-B9C03A` for ₹9,998 with COD payment.
+
+### 2. Verified Automatic Inventory Stock Deduction
+* Checked product 1 stock after ordering 2 units:
+```bash
+curl -s http://localhost:5005/api/products/1
+```
+* **Output:** Product stock was successfully decremented from **35 down to 33**.
+
+### 3. Verified Automatic Cart Cleanup
+```bash
+curl -s -X GET -H "x-cart-id: 4029950e-c602-4337-99a7-5698fb0c4ab5" http://localhost:5005/api/cart
+```
+* **Output:** Cart was automatically cleared (`items: []`, `totalAmount: 0`).
+
+### 4. Verified Payment Signature -> Order Status `PAID` Sync
+* Created digital order (`paymentMethod: CARD`), verified payment signature via `/api/payments/verify`:
+```bash
+curl -s http://localhost:5005/api/orders/2
+```
+* **Output:**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "id": 2,
+      "orderNumber": "ORD-1784551399759-F47D32",
+      "totalAmount": 4999,
+      "status": "PAID",
+      "paymentMethod": "CARD",
+      "payment": {
+        "orderId": "order_TFlFMmlGhqwhtb",
+        "paymentId": "pay_test_card_123",
+        "status": "CAPTURED"
+      }
+    }
+  }
+  ```
+
+
 

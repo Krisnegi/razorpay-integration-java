@@ -110,6 +110,14 @@ export class PaymentService {
         },
       });
 
+      // Sync Order status to PAID if linked
+      if (updatedPayment.orderRefId) {
+        await prisma.order.update({
+          where: { id: updatedPayment.orderRefId },
+          data: { status: 'PAID' },
+        });
+      }
+
       return updatedPayment;
     } catch (error: any) {
       throw new AppError('Payment not found or database update failed', 404);
@@ -146,15 +154,28 @@ export class PaymentService {
 
       if (orderId) {
         try {
-          await prisma.payment.updateMany({
-            where: { orderId, status: PaymentStatus.PENDING },
-            data: {
-              status: PaymentStatus.CAPTURED,
-              paymentId: paymentId,
-            },
+          const payment = await prisma.payment.findUnique({
+            where: { orderId },
           });
+
+          if (payment) {
+            await prisma.payment.update({
+              where: { orderId },
+              data: {
+                status: PaymentStatus.CAPTURED,
+                paymentId: paymentId,
+              },
+            });
+
+            if (payment.orderRefId) {
+              await prisma.order.update({
+                where: { id: payment.orderRefId },
+                data: { status: 'PAID' },
+              });
+            }
+          }
         } catch (error) {
-          console.error('[Webhook Error] Failed to update payment status:', error);
+          console.error('[Webhook Error] Failed to update payment/order status:', error);
         }
       }
     }

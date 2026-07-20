@@ -243,7 +243,7 @@ curl -s -X GET -H "x-cart-id: 4029950e-c602-4337-99a7-5698fb0c4ab5" http://local
 curl -s http://localhost:5005/api/orders/2
 ```
 * **Output:**
-  ```json
+```json
   {
     "status": "success",
     "data": {
@@ -260,6 +260,55 @@ curl -s http://localhost:5005/api/orders/2
     }
   }
   ```
+
+---
+
+# Phase 5 Walkthrough: User Authentication
+
+We have successfully implemented Phase 5 (User database model with roles, password hashing using `bcryptjs`, JWT token authentication, authentication middleware guard, and user endpoints).
+
+## What Was Built in Phase 5
+
+1. **Prisma User Model & Relations:** Added `User` model and `Role` enum (`CUSTOMER`, `ADMIN`) to `prisma/schema.prisma`. Linked optional `userId` foreign keys to `Cart` and `Order` models to support both Guest and Authenticated flows.
+2. **Auth Request Schemas:** `src/schemas/auth.schema.ts` for validating register payloads (name, email, password min length) and login credentials.
+3. **Password Hashing & JWT Signing:** `src/services/auth.service.ts` using `bcryptjs` (salt rounds: 12) for secure password hashing/comparison, and `jsonwebtoken` for issuing signed JWT access tokens (`JWT_EXPIRES_IN=7d`).
+4. **JWT Auth Guard Middleware:** `src/middleware/auth.ts` to extract `Authorization: Bearer <token>`, verify tokens, and attach `req.user` payload to incoming request contexts.
+5. **Auth Controller & Routes:** `src/controllers/auth.controller.ts` and `src/routes/auth.routes.ts` mounted at `/api/auth`.
+
+---
+
+## Verification Test Runs & Output Logs
+
+### 1. User Registration (`POST /api/auth/register`)
+```bash
+curl -s -X POST -H "Content-Type: application/json" -d '{"name": "Alice Cooper", "email": "alice@example.com", "password": "securepassword123", "phone": "9876543210"}' http://localhost:5005/api/auth/register
+```
+* **Output:** User created successfully with `role: CUSTOMER` and returned signed JWT token.
+
+### 2. Duplicate Registration Rejection
+```bash
+curl -s -X POST -H "Content-Type: application/json" -d '{"name": "Alice Cooper", "email": "alice@example.com", "password": "securepassword123"}' http://localhost:5005/api/auth/register
+```
+* **Output:** Returned `{"status":"error","message":"Email address is already registered"}` with HTTP 400 status.
+
+### 3. User Login (`POST /api/auth/login`)
+```bash
+curl -s -X POST -H "Content-Type: application/json" -d '{"email": "alice@example.com", "password": "securepassword123"}' http://localhost:5005/api/auth/login
+```
+* **Output:** Returned `{"status":"success","message":"Login successful","data":{ user: {...}, token: "..." }}`.
+
+### 4. Protected Route Unauthorized Rejection (`GET /api/auth/me` without Token)
+```bash
+curl -s http://localhost:5005/api/auth/me
+```
+* **Output:** Returned `{"status":"error","message":"Authentication token missing or invalid format (Bearer token required)"}` with HTTP 401 status.
+
+### 5. Protected Route Authenticated Access (`GET /api/auth/me` with Bearer Token)
+```bash
+curl -s -H "Authorization: Bearer <JWT_TOKEN>" http://localhost:5005/api/auth/me
+```
+* **Output:** Returned user profile `{"status":"success","data":{"id":1,"name":"Alice Cooper","email":"alice@example.com","role":"CUSTOMER"}}`.
+
 
 
 

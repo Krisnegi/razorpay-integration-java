@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Lock, Mail, User as UserIcon, Check } from 'lucide-react';
+import { X, Lock, Mail, User as UserIcon, Loader2 } from 'lucide-react';
 import { User } from '../types';
+import { loginUser, registerUser } from '../lib/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface AuthModalProps {
   user: User | null;
   onLogin: (user: User) => void;
   onLogout: () => void;
+  onOpenOrders?: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -18,24 +20,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   user,
   onLogin,
   onLogout,
+  onOpenOrders,
 }) => {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('Alice Cooper');
   const [email, setEmail] = useState('alice@example.com');
   const [password, setPassword] = useState('securepassword123');
+  const [phone, setPhone] = useState('9876543210');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dummyUser: User = {
-      id: user ? user.id : 1,
-      name: tab === 'register' ? name : email.split('@')[0],
-      email,
-      role: 'CUSTOMER',
-    };
-    onLogin(dummyUser);
-    onClose();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (tab === 'register') {
+        const res = await registerUser({ name, email, password, phone });
+        onLogin(res.user);
+      } else {
+        const res = await loginUser({ email, password });
+        onLogin(res.user);
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,12 +66,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </button>
 
         {user ? (
-          <div className="text-center py-6">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center mx-auto mb-4 text-indigo-400">
+          <div className="text-center py-6 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center mx-auto text-indigo-400">
               <UserIcon className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-extrabold text-white mb-1">{user.name}</h3>
-            <p className="text-xs text-slate-400 mb-6">{user.email}</p>
+            <div>
+              <h3 className="text-xl font-extrabold text-white">{user.name}</h3>
+              <p className="text-xs text-slate-400">{user.email}</p>
+              <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                Role: {user.role}
+              </span>
+            </div>
+
+            {onOpenOrders && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenOrders();
+                }}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors"
+              >
+                View Order History
+              </button>
+            )}
+
             <button
               onClick={() => {
                 onLogout();
@@ -73,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="flex rounded-xl bg-slate-900/80 p-1 border border-slate-800 mb-6">
               <button
                 type="button"
-                onClick={() => setTab('login')}
+                onClick={() => { setTab('login'); setError(null); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                   tab === 'login'
                     ? 'bg-indigo-600 text-white shadow-md'
@@ -84,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setTab('register')}
+                onClick={() => { setTab('register'); setError(null); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                   tab === 'register'
                     ? 'bg-indigo-600 text-white shadow-md'
@@ -94,6 +127,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 Create Account
               </button>
             </div>
+
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center font-medium">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {tab === 'register' && (
@@ -108,7 +147,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Jane Doe"
+                      placeholder="Alice Cooper"
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
                     />
                   </div>
@@ -151,9 +190,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all mt-2"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all mt-2 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {tab === 'login' ? 'Sign In to Account' : 'Register New Account'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : tab === 'login' ? (
+                  'Sign In to Account'
+                ) : (
+                  'Register New Account'
+                )}
               </button>
             </form>
           </div>

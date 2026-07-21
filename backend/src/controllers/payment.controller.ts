@@ -2,18 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service';
 
 export class PaymentController {
-  public static async createOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const order = await PaymentService.createOrder(req.body);
-      res.status(201).json({
-        status: 'success',
-        data: order,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
   public static async verifyPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const payment = await PaymentService.verifySignature(req.body);

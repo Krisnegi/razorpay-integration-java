@@ -144,9 +144,9 @@ export const verifyPayment = async (paymentData: {
   return res.data;
 };
 
-export const fetchMyOrders = async () => {
-  const res = await customFetch('/orders/my-orders');
-  return res.data;
+export const fetchMyOrders = async (page: number = 1, limit: number = 10) => {
+  const res = await customFetch(`/orders/my-orders?page=${page}&limit=${limit}`);
+  return res;
 };
 
 // --- User Authentication APIs ---

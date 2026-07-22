@@ -80,10 +80,9 @@ A full-stack, next-generation tech gear storefront featuring atomic inventory co
 
 ### 3. Run the Frontend Storefront
 1. Navigate to `/frontend`.
-2. Configure `.env.local`:
+2. Configure `.env.local` (the Razorpay Key ID is fetched dynamically from backend checkout payload):
    ```env
    NEXT_PUBLIC_API_URL="http://localhost:5005/api"
-   NEXT_PUBLIC_RAZORPAY_KEY_ID="your_razorpay_key_id"
    ```
 3. Install dependencies:
    ```bash

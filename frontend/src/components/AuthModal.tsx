@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Lock, Mail, User as UserIcon, Loader2 } from 'lucide-react';
 import { User } from '../types';
 import { loginUser, registerUser } from '../lib/api';
+import { PhoneInput } from './PhoneInput';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -23,10 +24,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenOrders,
 }) => {
   const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [name, setName] = useState('Alice Cooper');
-  const [email, setEmail] = useState('alice@example.com');
-  const [password, setPassword] = useState('securepassword123');
-  const [phone, setPhone] = useState('9876543210');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +41,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (tab === 'register') {
-        const res = await registerUser({ name, email, password, phone });
+        const res = await registerUser({
+          name,
+          email,
+          password,
+          countryCode,
+          phone: phone || undefined,
+        });
         onLogin(res.user);
       } else {
         const res = await loginUser({ email, password });
@@ -73,6 +81,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <h3 className="text-xl font-extrabold text-white">{user.name}</h3>
               <p className="text-xs text-slate-400">{user.email}</p>
+              {user.phone && (
+                <p className="text-xs font-mono text-indigo-300 mt-1">
+                  {user.countryCode || '+91'} {user.phone}
+                </p>
+              )}
               <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
                 Role: {user.role}
               </span>
@@ -136,22 +149,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {tab === 'register' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Alice Cooper"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
-                    />
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter full name"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
                   </div>
-                </div>
+
+                  <PhoneInput
+                    countryCode={countryCode}
+                    phone={phone}
+                    onCountryCodeChange={setCountryCode}
+                    onPhoneChange={setPhone}
+                    label="Phone Number"
+                    required={false}
+                  />
+                </>
               )}
 
               <div>
@@ -165,7 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="user@example.com"
+                    placeholder="Enter email address"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -182,7 +206,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>

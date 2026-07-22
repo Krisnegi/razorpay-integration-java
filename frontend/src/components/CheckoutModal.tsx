@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CreditCard, Banknote, Shield, Truck, CheckCircle, Loader2 } from 'lucide-react';
-import { CartItem } from '../types';
+import { CartItem, User } from '../types';
 import { checkoutOrder } from '../lib/api';
 import { openRazorpayCheckout } from '../lib/razorpay';
+import { PhoneInput } from './PhoneInput';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface CheckoutModalProps {
   items: CartItem[];
   totalAmount: number;
   onOrderSuccess: () => void;
+  user: User | null;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -20,15 +22,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   items,
   totalAmount,
   onOrderSuccess,
+  user,
 }) => {
-  const [customerEmail, setCustomerEmail] = useState('buyer@example.com');
-  const [customerPhone, setCustomerPhone] = useState('9876543210');
-  const [shippingAddress, setShippingAddress] = useState('123 Tech Park, Indiranagar, Bengaluru');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerCountryCode, setCustomerCountryCode] = useState('+91');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'UPI' | 'NETBANKING' | 'COD'>('CARD');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successOrder, setSuccessOrder] = useState<any | null>(null);
+
+  // Prefill user details if logged in
+  useEffect(() => {
+    if (isOpen) {
+      if (user) {
+        setCustomerEmail(user.email || '');
+        setCustomerCountryCode(user.countryCode || '+91');
+        setCustomerPhone(user.phone || '');
+      } else {
+        setCustomerEmail('');
+        setCustomerCountryCode('+91');
+        setCustomerPhone('');
+      }
+    }
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -41,6 +60,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const result = await checkoutOrder({
         paymentMethod,
         customerEmail,
+        customerCountryCode,
         customerPhone,
         shippingAddress,
       });
@@ -61,7 +81,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           currency: paymentPayload.currency || 'INR',
           keyId: paymentPayload.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
           customerEmail,
-          customerPhone,
+          customerPhone: `${customerCountryCode}${customerPhone}`,
           onSuccess: (verifyRes) => {
             setSuccessOrder({
               ...result,
@@ -127,11 +147,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Email Address
+                  Email Address <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="email"
                   required
+                  placeholder="Enter email for order confirmation"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -139,18 +160,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
+                <PhoneInput
+                  countryCode={customerCountryCode}
+                  phone={customerPhone}
+                  onCountryCodeChange={setCustomerCountryCode}
+                  onPhoneChange={setCustomerPhone}
+                  label="Phone Number"
+                  required={true}
+                />
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
@@ -158,7 +175,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </label>
                   <input
                     type="text"
-                    defaultValue="Bengaluru, KA"
+                    placeholder="City, State"
                     className="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -166,11 +183,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Delivery Address
+                  Delivery Address <span className="text-rose-400">*</span>
                 </label>
                 <textarea
                   rows={2}
                   required
+                  placeholder="House/Flat No., Street, Landmark, Pincode"
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500 resize-none"

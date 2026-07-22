@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { ShoppingBag, User as UserIcon, Search, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShoppingBag, User as UserIcon, Search, ShieldCheck, X } from 'lucide-react';
 import { User } from '../types';
 
 interface NavbarProps {
@@ -9,8 +9,7 @@ interface NavbarProps {
   onOpenCart: () => void;
   onOpenAuth: () => void;
   user: User | null;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  onSearchSubmit: (query: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,9 +17,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCart,
   onOpenAuth,
   user,
-  searchQuery,
-  onSearchChange,
+  onSearchSubmit,
 }) => {
+  const [searchInput, setSearchInput] = useState('');
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    onSearchSubmit(searchInput.trim());
+  };
+
+  const handleClear = () => {
+    setSearchInput('');
+    onSearchSubmit('');
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-800/80 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
@@ -39,18 +49,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar with Submit Button */}
         <div className="flex-1 max-w-md hidden md:block">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center">
             <input
               type="text"
               placeholder="Search premium tech, wearables, accessories..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-4 pr-20 py-2 bg-slate-900/90 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
             />
-          </div>
+            {searchInput && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="absolute right-10 text-slate-500 hover:text-slate-300 p-1 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="absolute right-1.5 p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all duration-200 shadow-md shadow-indigo-600/30"
+              title="Search Products"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </form>
         </div>
 
         {/* Action Controls */}

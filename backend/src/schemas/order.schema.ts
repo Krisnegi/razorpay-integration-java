@@ -12,7 +12,13 @@ export const checkoutOrderSchema = z.object({
       }),
     }),
     customerEmail: z.string().email('Invalid customer email address'),
-    customerPhone: z.string().optional().nullable(),
+    customerCountryCode: z.string().regex(/^\+\d{1,4}$/, 'Invalid country code format (e.g. +91)').optional().nullable(),
+    customerPhone: z
+      .string()
+      .regex(/^\d{7,15}$/, 'Phone number must contain between 7 and 15 digits')
+      .optional()
+      .nullable()
+      .or(z.literal('')),
     shippingAddress: z.string().optional().nullable(),
   }),
 });

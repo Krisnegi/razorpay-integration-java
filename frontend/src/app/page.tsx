@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Navbar } from '../components/Navbar';
 import { ProductCard } from '../components/ProductCard';
 import { CartDrawer } from '../components/CartDrawer';
@@ -17,9 +17,10 @@ import {
   removeCartItem as apiRemoveItem,
   clearCart as apiClearCart,
   fetchProfile,
+  getAuthToken,
   removeAuthToken,
 } from '../lib/api';
-import { Sparkles, Shield, Zap, RefreshCw } from 'lucide-react';
+import { Sparkles, Shield, Zap, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -28,7 +29,14 @@ export default function Home() {
   const [cartItemCount, setCartItemCount] = useState<number>(0);
   
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [paginationMeta, setPaginationMeta] = useState<{
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  }>({ page: 1, limit: 12, totalItems: 0, totalPages: 1 });
   
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -36,21 +44,32 @@ export default function Home() {
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   
   const [user, setUser] = useState<User | null>(null);
-  const [addedItemIds, setAddedItemIds] = useState<Set<number>>(new Set());
   const [productsLoading, setProductsLoading] = useState<boolean>(true);
 
-  // Load Products from Backend
-  const loadProducts = useCallback(async () => {
+  // Map of Product ID -> Quantity in Cart
+  const cartItemMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    cartItems.forEach((item) => {
+      map[item.productId] = item.quantity;
+    });
+    return map;
+  }, [cartItems]);
+
+  // Load Products with Pagination from Backend
+  const loadProducts = useCallback(async (search: string, category: string, pageNum: number) => {
     setProductsLoading(true);
     try {
-      const data = await fetchProducts(searchQuery, selectedCategory);
-      setProducts(data || []);
+      const res = await fetchProducts(search, category, pageNum, 12);
+      setProducts(res.data || []);
+      if (res.pagination) {
+        setPaginationMeta(res.pagination);
+      }
     } catch (err) {
       console.error('Failed to load products from API:', err);
     } finally {
       setProductsLoading(false);
     }
-  }, [searchQuery, selectedCategory]);
+  }, []);
 
   // Load Cart from Backend
   const loadCart = useCallback(async () => {
@@ -68,21 +87,42 @@ export default function Home() {
 
   // Load User Profile if Token Exists
   const loadUser = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
     try {
       const userData = await fetchProfile();
       setUser(userData);
     } catch (err) {
-      // Invalid token or logged out
       removeAuthToken();
       setUser(null);
     }
   }, []);
 
+  // Mount Effect: Run Cart and User Profile checks ONLY ONCE on page load
   useEffect(() => {
-    loadProducts();
     loadCart();
     loadUser();
-  }, [loadProducts, loadCart, loadUser]);
+  }, [loadCart, loadUser]);
+
+  // Product Effect: Triggered when search query, category, or page number changes
+  useEffect(() => {
+    loadProducts(appliedSearchQuery, selectedCategory, currentPage);
+  }, [appliedSearchQuery, selectedCategory, currentPage, loadProducts]);
+
+  // Handle Search Submission
+  const handleSearchSubmit = (query: string) => {
+    setAppliedSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  // Handle Category Change
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat);
+    setCurrentPage(1);
+  };
 
   // Add Item to Cart via API
   const handleAddToCart = async (product: Product) => {
@@ -91,16 +131,6 @@ export default function Home() {
       setCartItems(cartData.items || []);
       setCartTotalAmount(cartData.totalAmount || 0);
       setCartItemCount(cartData.itemCount || 0);
-
-      // Flash feedback
-      setAddedItemIds((prev) => new Set(prev).add(product.id));
-      setTimeout(() => {
-        setAddedItemIds((prev) => {
-          const next = new Set(prev);
-          next.delete(product.id);
-          return next;
-        });
-      }, 1200);
     } catch (err: any) {
       alert(err.message || 'Failed to add item to cart');
     }
@@ -152,8 +182,7 @@ export default function Home() {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         user={user}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchSubmit={handleSearchSubmit}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-12">
@@ -162,7 +191,7 @@ export default function Home() {
           <div className="relative z-10 max-w-2xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
               <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>Express + PostgreSQL + Razorpay Backend Connected</span>
+              <span>55+ Live Catalog Items in PostgreSQL</span>
             </div>
 
             <h1 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">
@@ -202,7 +231,9 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-black text-white tracking-tight">Product Catalog</h2>
-              <p className="text-xs text-slate-400">Live inventory synced from PostgreSQL database (Port 5005)</p>
+              <p className="text-xs text-slate-400">
+                Showing {products.length} of {paginationMeta.totalItems} items in database
+              </p>
             </div>
 
             {/* Category Filter Tabs */}
@@ -210,7 +241,7 @@ export default function Home() {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => handleCategoryChange(cat)}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     selectedCategory === cat
                       ? 'bg-indigo-600 text-white shadow-md'
@@ -236,16 +267,75 @@ export default function Home() {
               <p className="text-xs text-slate-500">Try adjusting your search query or category filter</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                  isAdded={addedItemIds.has(product.id)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    quantityInCart={cartItemMap[product.id] || 0}
+                    onAddToCart={handleAddToCart}
+                    onUpdateQuantity={handleUpdateQuantity}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {paginationMeta.totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-800/80">
+                  <span className="text-xs text-slate-400">
+                    Showing Page <span className="font-bold text-white">{paginationMeta.page}</span> of{' '}
+                    <span className="font-bold text-white">{paginationMeta.totalPages}</span> ({paginationMeta.totalItems} total items)
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrentPage((prev) => Math.max(prev - 1, 1));
+                        const catalog = document.getElementById('catalog');
+                        catalog?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Prev</span>
+                    </button>
+
+                    {Array.from({ length: paginationMeta.totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => {
+                          setCurrentPage(p);
+                          const catalog = document.getElementById('catalog');
+                          catalog?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                          currentPage === p
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => {
+                        setCurrentPage((prev) => Math.min(prev + 1, paginationMeta.totalPages));
+                        const catalog = document.getElementById('catalog');
+                        catalog?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === paginationMeta.totalPages}
+                      className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       </main>
@@ -276,8 +366,9 @@ export default function Home() {
         totalAmount={cartTotalAmount}
         onOrderSuccess={() => {
           loadCart();
-          loadProducts();
+          loadProducts(appliedSearchQuery, selectedCategory, currentPage);
         }}
+        user={user}
       />
 
       {/* User Auth Modal */}

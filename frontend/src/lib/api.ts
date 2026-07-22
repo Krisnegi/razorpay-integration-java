@@ -64,14 +64,21 @@ const customFetch = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 // --- Products APIs ---
-export const fetchProducts = async (search?: string, category?: string) => {
+export const fetchProducts = async (
+  search?: string,
+  category?: string,
+  page: number = 1,
+  limit: number = 12
+) => {
   const params = new URLSearchParams();
   if (search) params.append('search', search);
   if (category && category !== 'All') params.append('category', category);
+  params.append('page', page.toString());
+  params.append('limit', limit.toString());
 
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await customFetch(`/products${query}`);
-  return res.data;
+  return res;
 };
 
 // --- Cart APIs ---
@@ -114,6 +121,7 @@ export const clearCart = async () => {
 export const checkoutOrder = async (orderData: {
   paymentMethod: 'CARD' | 'UPI' | 'NETBANKING' | 'WALLET' | 'COD';
   customerEmail: string;
+  customerCountryCode?: string;
   customerPhone?: string;
   shippingAddress?: string;
 }) => {
@@ -146,6 +154,7 @@ export const registerUser = async (data: {
   name: string;
   email: string;
   password: string;
+  countryCode?: string;
   phone?: string;
 }) => {
   const res = await customFetch('/auth/register', {

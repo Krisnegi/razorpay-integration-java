@@ -30,6 +30,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  countryCode?: string | null;
   phone?: string | null;
   role: 'CUSTOMER' | 'ADMIN';
 }

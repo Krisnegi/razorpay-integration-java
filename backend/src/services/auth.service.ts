@@ -20,6 +20,7 @@ export class AuthService {
     name: string;
     email: string;
     password: string;
+    countryCode?: string | null;
     phone?: string | null;
   }) {
     const existingUser = await prisma.user.findUnique({
@@ -37,6 +38,7 @@ export class AuthService {
         name: data.name,
         email: data.email,
         password: hashedPassword,
+        countryCode: data.countryCode || '+91',
         phone: data.phone,
       },
     });
@@ -48,6 +50,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        countryCode: user.countryCode,
         phone: user.phone,
         role: user.role,
         createdAt: user.createdAt,
@@ -77,6 +80,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        countryCode: user.countryCode,
         phone: user.phone,
         role: user.role,
         createdAt: user.createdAt,
@@ -92,6 +96,7 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
+        countryCode: true,
         phone: true,
         role: true,
         createdAt: true,

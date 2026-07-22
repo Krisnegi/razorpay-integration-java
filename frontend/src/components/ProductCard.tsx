@@ -1,19 +1,21 @@
 'use client';
 
 import React from 'react';
-import { ShoppingCart, Star, Check } from 'lucide-react';
+import { ShoppingCart, Star, Plus, Minus } from 'lucide-react';
 import { Product } from '../types';
 
 interface ProductCardProps {
   product: Product;
+  quantityInCart?: number;
   onAddToCart: (product: Product) => void;
-  isAdded?: boolean;
+  onUpdateQuantity: (productId: number, newQty: number) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
+  quantityInCart = 0,
   onAddToCart,
-  isAdded = false,
+  onUpdateQuantity,
 }) => {
   return (
     <div className="group glass-card rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1">
@@ -64,27 +66,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </span>
         </div>
 
-        <button
-          onClick={() => onAddToCart(product)}
-          disabled={product.stock <= 0}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
-            isAdded
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-              : 'bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-300 hover:text-white'
-          }`}
-        >
-          {isAdded ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              <span>Added</span>
-            </>
-          ) : (
-            <>
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Add to Cart</span>
-            </>
-          )}
-        </button>
+        {quantityInCart > 0 ? (
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-indigo-500/40 rounded-xl p-1 shadow-inner shadow-indigo-500/10">
+            <button
+              onClick={() => onUpdateQuantity(product.id, quantityInCart - 1)}
+              disabled={quantityInCart <= 1}
+              className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Decrease quantity"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <span className="w-6 text-center font-bold text-xs text-white">
+              {quantityInCart}
+            </span>
+            <button
+              onClick={() => onUpdateQuantity(product.id, quantityInCart + 1)}
+              disabled={quantityInCart >= product.stock}
+              className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-sm"
+              title="Increase quantity"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => onAddToCart(product)}
+            disabled={product.stock <= 0}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-300 hover:text-white transition-all duration-200"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            <span>Add to Cart</span>
+          </button>
+        )}
       </div>
     </div>
   );

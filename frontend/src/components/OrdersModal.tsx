@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Package, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Package, Clock, CheckCircle2 } from 'lucide-react';
 import { fetchMyOrders } from '../lib/api';
 
 interface OrdersModalProps {
@@ -85,7 +85,7 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-white">
-                      ₹{order.totalAmount.toLocaleString('en-IN')}
+                      ₹{Number(order.totalAmount).toLocaleString('en-IN')}
                     </span>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
@@ -106,14 +106,14 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
 
                 {/* Items */}
                 <div className="space-y-2">
-                  {order.items.map((item: any) => (
+                  {order.items?.map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between text-xs text-slate-300">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-slate-400">{item.quantity}x</span>
-                        <span className="text-white truncate max-w-xs">{item.name}</span>
+                        <span className="text-white truncate max-w-xs">{item.product?.name}</span>
                       </div>
                       <span className="font-mono text-slate-400">
-                        ₹{item.itemTotal.toLocaleString('en-IN')}
+                        ₹{(Number(item.price) * item.quantity).toLocaleString('en-IN')}
                       </span>
                     </div>
                   ))}

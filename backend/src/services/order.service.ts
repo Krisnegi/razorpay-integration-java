@@ -8,12 +8,13 @@ export class OrderService {
   public static async checkout(data: {
     cartId: string;
     customerEmail: string;
+    customerCountryCode?: string | null;
     customerPhone?: string | null;
     shippingAddress?: string | null;
     paymentMethod: PaymentMethod;
     userId?: number;
   }) {
-    const { cartId, customerEmail, customerPhone, shippingAddress, paymentMethod, userId } = data;
+    const { cartId, customerEmail, customerCountryCode, customerPhone, shippingAddress, paymentMethod, userId } = data;
 
     const cart = await prisma.cart.findUnique({
       where: { id: cartId },
@@ -54,6 +55,7 @@ export class OrderService {
           userId: userId || null,
           cartId,
           customerEmail,
+          customerCountryCode: customerCountryCode || '+91',
           customerPhone,
           shippingAddress,
           totalAmount,
@@ -76,22 +78,26 @@ export class OrderService {
         },
       });
 
-      // Decrement product inventory
-      for (const item of cart.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity,
+      // Clear cart items and decrement stock IMMEDIATELY ONLY for COD orders.
+      // For online payments, we wait until payment is verified successfully.
+      if (paymentMethod === PaymentMethod.COD) {
+        // Decrement product inventory
+        for (const item of cart.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              stock: {
+                decrement: item.quantity,
+              },
             },
-          },
+          });
+        }
+
+        // Clear Cart items
+        await tx.cartItem.deleteMany({
+          where: { cartId },
         });
       }
-
-      // Clear Cart items
-      await tx.cartItem.deleteMany({
-        where: { cartId },
-      });
 
       return newOrder;
     });
@@ -102,6 +108,7 @@ export class OrderService {
       currency: 'INR',
       method: paymentMethod,
       customerEmail,
+      customerCountryCode,
       customerPhone,
     });
 
@@ -120,80 +127,11 @@ export class OrderService {
       totalAmount: Number(order.totalAmount),
       status: order.status,
       paymentMethod: order.paymentMethod,
-      items: order.items.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        name: item.product.name,
-        price: Number(item.price),
-        quantity: item.quantity,
-        itemTotal: Number(item.price) * item.quantity,
-      })),
       payment: paymentResult,
     };
   }
 
-  public static async getMyOrders(userId: number, page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
-
-    const [orders, totalOrders] = await Promise.all([
-      prisma.order.findMany({
-        where: { userId },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          payment: true,
-        },
-      }),
-      prisma.order.count({
-        where: { userId },
-      }),
-    ]);
-
-    const formattedOrders = orders.map((order) => ({
-      id: order.id,
-      orderNumber: order.orderNumber,
-      totalAmount: Number(order.totalAmount),
-      status: order.status,
-      paymentMethod: order.paymentMethod,
-      shippingAddress: order.shippingAddress,
-      createdAt: order.createdAt,
-      items: order.items.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        name: item.product.name,
-        price: Number(item.price),
-        quantity: item.quantity,
-        imageUrl: item.product.imageUrl,
-        itemTotal: Number(item.price) * item.quantity,
-      })),
-      payment: order.payment
-        ? {
-            orderId: order.payment.orderId,
-            paymentId: order.payment.paymentId,
-            status: order.payment.status,
-            method: order.payment.method,
-          }
-        : null,
-    }));
-
-    return {
-      orders: formattedOrders,
-      pagination: {
-        page,
-        limit,
-        totalOrders,
-        totalPages: Math.ceil(totalOrders / limit) || 1,
-      },
-    };
-  }
-
-  public static async getOrderById(id: number, requestingUserId?: number) {
+  public static async getOrderById(id: number, userId?: number) {
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -207,42 +145,51 @@ export class OrderService {
     });
 
     if (!order) {
-      throw new AppError(`Order with ID ${id} not found`, 404);
+      throw new AppError('Order not found', 404);
     }
 
-    // Authorization check: If order has a userId assigned, ensure requesting user matches
-    if (order.userId && requestingUserId && order.userId !== requestingUserId) {
-      throw new AppError('You do not have permission to view this order', 403);
+    if (userId && order.userId !== userId) {
+      throw new AppError('Unauthorized access to this order', 403);
     }
+
+    return order;
+  }
+
+  public static async getMyOrders(userId: number, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [orders, totalItems] = await prisma.$transaction([
+      prisma.order.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          payment: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.order.count({
+        where: { userId },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      userId: order.userId,
-      customerEmail: order.customerEmail,
-      customerPhone: order.customerPhone,
-      shippingAddress: order.shippingAddress,
-      totalAmount: Number(order.totalAmount),
-      status: order.status,
-      paymentMethod: order.paymentMethod,
-      createdAt: order.createdAt,
-      items: order.items.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        name: item.product.name,
-        price: Number(item.price),
-        quantity: item.quantity,
-        imageUrl: item.product.imageUrl,
-        itemTotal: Number(item.price) * item.quantity,
-      })),
-      payment: order.payment
-        ? {
-            orderId: order.payment.orderId,
-            paymentId: order.payment.paymentId,
-            status: order.payment.status,
-            method: order.payment.method,
-          }
-        : null,
+      orders,
+      pagination: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+      },
     };
   }
 }

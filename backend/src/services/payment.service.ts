@@ -2,7 +2,16 @@ import crypto from 'crypto';
 import { razorpay } from '../config/razorpay';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/error';
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
+
+function mapRazorpayMethodToEnum(razorpayMethod: string): PaymentMethod {
+  const methodUpper = (razorpayMethod || '').toUpperCase();
+  if (methodUpper === 'CARD') return PaymentMethod.CARD;
+  if (methodUpper === 'UPI') return PaymentMethod.UPI;
+  if (methodUpper === 'NETBANKING' || methodUpper === 'BANK') return PaymentMethod.NETBANKING;
+  if (methodUpper === 'WALLET') return PaymentMethod.WALLET;
+  return PaymentMethod.CARD; // Fallback
+}
 
 export class PaymentService {
   public static async createOrder(data: {
@@ -10,9 +19,10 @@ export class PaymentService {
     currency: string;
     method: PaymentMethod;
     customerEmail: string;
+    customerCountryCode?: string | null;
     customerPhone?: string | null;
   }) {
-    const { amount, currency, method, customerEmail, customerPhone } = data;
+    const { amount, currency, method, customerEmail, customerCountryCode, customerPhone } = data;
 
     if (method === PaymentMethod.COD) {
       const orderId = `COD-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -25,6 +35,7 @@ export class PaymentService {
           method,
           status: PaymentStatus.PENDING,
           customerEmail,
+          customerCountryCode: customerCountryCode || '+91',
           customerPhone,
         },
       });
@@ -54,6 +65,7 @@ export class PaymentService {
             method,
             status: PaymentStatus.PENDING,
             customerEmail,
+            customerCountryCode: customerCountryCode || '+91',
             customerPhone,
           },
         });
@@ -71,6 +83,49 @@ export class PaymentService {
         throw new AppError(`Razorpay Order Creation Failed: ${errorMsg}`, 500);
       }
     }
+  }
+
+  public static async completeOnlineOrder(orderId: number, finalMethod: PaymentMethod) {
+    await prisma.$transaction(async (tx) => {
+      // 1. Get order details with items
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: true,
+        },
+      });
+
+      if (!order) return;
+      if (order.status === OrderStatus.PAID) return; // Already processed
+
+      // 2. Decrement product inventory
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+
+      // 3. Clear cart items
+      if (order.cartId) {
+        await tx.cartItem.deleteMany({
+          where: { cartId: order.cartId },
+        });
+      }
+
+      // 4. Update order status to PAID
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.PAID,
+          paymentMethod: finalMethod,
+        },
+      });
+    });
   }
 
   public static async verifySignature(data: {
@@ -100,6 +155,17 @@ export class PaymentService {
       throw new AppError('Payment verification failed: Signature mismatch', 400);
     }
 
+    // Resolve actual payment method used in Razorpay checkout
+    let finalMethod: PaymentMethod = PaymentMethod.CARD;
+    try {
+      const paymentDetails = await razorpay.payments.fetch(razorpay_payment_id);
+      if (paymentDetails && paymentDetails.method) {
+        finalMethod = mapRazorpayMethodToEnum(paymentDetails.method);
+      }
+    } catch (err) {
+      console.error('Failed to fetch payment details from Razorpay:', err);
+    }
+
     try {
       const updatedPayment = await prisma.payment.update({
         where: { orderId: razorpay_order_id },
@@ -107,15 +173,13 @@ export class PaymentService {
           paymentId: razorpay_payment_id,
           signature: razorpay_signature,
           status: PaymentStatus.CAPTURED,
+          method: finalMethod,
         },
       });
 
-      // Sync Order status to PAID if linked
+      // Sync Order status and true method to PAID/finalMethod if linked, and decrement stock + empty cart
       if (updatedPayment.orderRefId) {
-        await prisma.order.update({
-          where: { id: updatedPayment.orderRefId },
-          data: { status: 'PAID' },
-        });
+        await PaymentService.completeOnlineOrder(updatedPayment.orderRefId, finalMethod);
       }
 
       return updatedPayment;
@@ -151,6 +215,8 @@ export class PaymentService {
       const paymentPayload = event.payload.payment.entity;
       const orderId = paymentPayload.order_id;
       const paymentId = paymentPayload.id;
+      const razorpayMethod = paymentPayload.method;
+      const finalMethod = mapRazorpayMethodToEnum(razorpayMethod);
 
       if (orderId) {
         try {
@@ -164,14 +230,12 @@ export class PaymentService {
               data: {
                 status: PaymentStatus.CAPTURED,
                 paymentId: paymentId,
+                method: finalMethod,
               },
             });
 
             if (payment.orderRefId) {
-              await prisma.order.update({
-                where: { id: payment.orderRefId },
-                data: { status: 'PAID' },
-              });
+              await PaymentService.completeOnlineOrder(payment.orderRefId, finalMethod);
             }
           }
         } catch (error) {

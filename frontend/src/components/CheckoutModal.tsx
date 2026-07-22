@@ -106,13 +106,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4">
       <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-xl glass-panel rounded-3xl border border-slate-800 p-6 md:p-8 shadow-2xl z-10 my-8">
+      <div className="relative w-full max-w-xl glass-panel rounded-3xl border border-slate-800 p-4 sm:p-6 md:p-8 shadow-2xl z-10 my-4 sm:my-8">
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -133,8 +133,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h2 className="text-2xl font-black text-white mb-1">Checkout & Payment</h2>
-              <p className="text-xs text-slate-400">Provide shipping details and select payment method</p>
+              <h2 className="text-xl sm:text-2xl font-black text-white mb-1">Checkout & Payment</h2>
+              <p className="text-[10px] sm:text-xs text-slate-400">Provide shipping details and select payment method</p>
             </div>
 
             {error && (
@@ -201,7 +201,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
                 Select Payment Method
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CARD')}
@@ -237,12 +237,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             {/* Summary */}
-            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Shield className="w-4 h-4 text-indigo-400" />
+            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-slate-400">
+                <Shield className="w-4 h-4 text-indigo-400 animate-pulse" />
                 <span>256-Bit Encrypted Checkout</span>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <span className="text-[10px] text-slate-500 block uppercase">Total to Pay</span>
                 <span className="text-lg font-black text-indigo-400">
                   ₹{totalAmount.toLocaleString('en-IN')}

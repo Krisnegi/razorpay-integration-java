@@ -49,10 +49,10 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4">
       <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-2xl glass-panel rounded-3xl border border-slate-800 p-6 md:p-8 shadow-2xl z-10 my-8 max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-2xl glass-panel rounded-3xl border border-slate-800 p-4 sm:p-6 md:p-8 shadow-2xl z-10 my-4 sm:my-8 max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -60,8 +60,8 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Your Past Orders</h2>
-              <p className="text-xs text-slate-400">Track status and purchase history</p>
+              <h2 className="text-lg sm:text-xl font-bold text-white">Your Past Orders</h2>
+              <p className="text-[10px] sm:text-xs text-slate-400">Track status and purchase history</p>
             </div>
           </div>
           <button
@@ -73,7 +73,7 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto py-6 space-y-4 pr-1">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 sm:py-6 space-y-4 pr-1">
           {loading ? (
             <div className="text-center py-12 text-slate-400">
               <Clock className="w-8 h-8 text-indigo-400 mx-auto mb-2 animate-spin" />
@@ -92,19 +92,19 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
           ) : (
             <div className="space-y-4">
               {orders.map((order) => (
-                <div key={order.id} className="glass-card rounded-2xl p-5 border border-slate-800/80 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                    <div>
-                      <span className="text-xs font-mono text-indigo-300 font-bold block">
+                <div key={order.id} className="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800/80 space-y-4 overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/60 pb-3">
+                    <div className="min-w-0">
+                      <span className="text-xs font-mono text-indigo-300 font-bold block break-all leading-tight">
                         {order.orderNumber}
                       </span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-slate-500 mt-1 block">
                         {new Date(order.createdAt).toLocaleString()}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                      <span className="text-sm font-bold text-white">
                         ₹{Number(order.totalAmount).toLocaleString('en-IN')}
                       </span>
                       <span
@@ -125,14 +125,14 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
                   </div>
 
                   {/* Items */}
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {order.items?.map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs text-slate-300">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-400">{item.quantity}x</span>
-                          <span className="text-white truncate max-w-xs">{item.product?.name}</span>
+                      <div key={item.id} className="flex items-start justify-between gap-4 text-xs text-slate-300">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span className="font-semibold text-slate-400 shrink-0 mt-0.5">{item.quantity}x</span>
+                          <span className="text-white break-words line-clamp-2 leading-relaxed">{item.product?.name}</span>
                         </div>
-                        <span className="font-mono text-slate-400">
+                        <span className="font-mono text-slate-400 shrink-0 mt-0.5">
                           ₹{(Number(item.price) * item.quantity).toLocaleString('en-IN')}
                         </span>
                       </div>
@@ -146,7 +146,7 @@ export const OrdersModal: React.FC<OrdersModalProps> = ({ isOpen, onClose }) => 
 
         {/* Footer Pagination Bar */}
         {!loading && !error && paginationMeta.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800 shrink-0">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800 shrink-0">
             <span className="text-[10px] text-slate-400">
               Showing Page <span className="font-bold text-white">{paginationMeta.page}</span> of{' '}
               <span className="font-bold text-white">{paginationMeta.totalPages}</span> ({paginationMeta.totalItems} orders)

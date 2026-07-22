@@ -35,15 +35,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md glass-panel border-l border-slate-800 flex flex-col shadow-2xl">
+      {/* Drawer Container */}
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0">
+        <div className="w-screen max-w-md glass-panel border-l border-slate-800 flex flex-col shadow-2xl overflow-hidden h-full">
           {/* Header */}
-          <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <ShoppingBag className="w-4 h-4" />
               </div>
-              <h2 className="text-lg font-bold text-white">Your Shopping Cart</h2>
+              <h2 className="text-base sm:text-lg font-bold text-white">Your Shopping Cart</h2>
             </div>
             <button
               onClick={onClose}
@@ -54,7 +55,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
 
           {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500">
                 <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
@@ -67,32 +68,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               items.map((item) => (
                 <div
                   key={item.productId}
-                  className="glass-card rounded-xl p-3.5 flex items-center gap-3 border border-slate-800/80"
+                  className="glass-card rounded-xl p-3 sm:p-3.5 flex items-start gap-3 border border-slate-800/80 overflow-hidden"
                 >
                   <img
                     src={item.imageUrl}
                     alt={item.name}
-                    className="w-16 h-16 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover bg-slate-900 border border-slate-800 shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-semibold text-white truncate mb-1">
-                      {item.name}
-                    </h4>
-                    <span className="text-xs font-bold text-indigo-400 block mb-2">
-                      ₹{item.price.toLocaleString('en-IN')}
-                    </span>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs font-semibold text-white break-words line-clamp-2 leading-snug flex-1">
+                        {item.name}
+                      </h4>
+                      <span className="text-xs font-bold text-white shrink-0">
+                        ₹{item.itemTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
 
-                    {/* Quantity controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="text-[10px] text-indigo-400 font-medium">
+                      ₹{item.price.toLocaleString('en-IN')} each
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      {/* Quantity controls */}
                       <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
                         <button
                           onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
                           disabled={item.quantity <= 1}
                           className="p-1 text-slate-400 hover:text-white disabled:opacity-30"
                         >
-                          <Minus className="w-3 h-3" />
+                          <Minus className="w-2.5 h-2.5" />
                         </button>
-                        <span className="px-2.5 text-xs font-semibold text-white">
+                        <span className="px-2 text-xs font-semibold text-white min-w-4 text-center">
                           {item.quantity}
                         </span>
                         <button
@@ -100,23 +107,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           disabled={item.quantity >= item.stock}
                           className="p-1 text-slate-400 hover:text-white disabled:opacity-30"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-2.5 h-2.5" />
                         </button>
                       </div>
+
                       <button
                         onClick={() => onRemoveItem(item.productId)}
-                        className="p-1 text-rose-400/80 hover:text-rose-400 transition-colors"
+                        className="p-1 text-rose-400/80 hover:text-rose-400 transition-colors shrink-0"
                         title="Remove item"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <span className="text-xs font-bold text-white">
-                      ₹{item.itemTotal.toLocaleString('en-IN')}
-                    </span>
                   </div>
                 </div>
               ))
@@ -125,7 +127,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
           {/* Footer Summary */}
           {items.length > 0 && (
-            <div className="p-6 border-t border-slate-800 bg-slate-950/80 space-y-4">
+            <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-950/80 space-y-4 shrink-0">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-400">Subtotal</span>
                 <span className="text-white font-semibold">₹{totalAmount.toLocaleString('en-IN')}</span>
@@ -136,7 +138,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
               <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between">
                 <span className="text-base font-bold text-white">Total Amount</span>
-                <span className="text-xl font-black text-indigo-400">
+                <span className="text-lg sm:text-xl font-black text-indigo-400">
                   ₹{totalAmount.toLocaleString('en-IN')}
                 </span>
               </div>

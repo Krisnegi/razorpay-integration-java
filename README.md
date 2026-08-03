@@ -1,6 +1,8 @@
-# Razorpay Integration E-Commerce Storefront
+# Razorpay & WhatsApp Cloud API Integration Storefront
 
-A full-stack, next-generation tech gear storefront featuring atomic inventory control, user authentication, and seamless Razorpay payment gateway integration.
+A full-stack, next-generation tech gear storefront featuring atomic inventory control, user authentication, seamless Razorpay Sandbox integration, and automated Meta WhatsApp Cloud API customer notifications.
+
+🌐 **Live Demo:** [https://razorpay-integration-omega.vercel.app/](https://razorpay-integration-omega.vercel.app/)
 
 ---
 

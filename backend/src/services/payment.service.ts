@@ -3,6 +3,7 @@ import { razorpay } from '../config/razorpay';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/error';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
+import { WhatsAppService } from './whatsapp.service';
 
 function mapRazorpayMethodToEnum(razorpayMethod: string): PaymentMethod {
   const methodUpper = (razorpayMethod || '').toUpperCase();
@@ -86,20 +87,21 @@ export class PaymentService {
   }
 
   public static async completeOnlineOrder(orderId: number, finalMethod: PaymentMethod) {
-    await prisma.$transaction(async (tx) => {
-      // 1. Get order details with items
-      const order = await tx.order.findUnique({
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Get order details with items and user details
+      const newOrder = await tx.order.findUnique({
         where: { id: orderId },
         include: {
           items: true,
+          user: true,
         },
       });
 
-      if (!order) return;
-      if (order.status === OrderStatus.PAID) return; // Already processed
+      if (!newOrder) return null;
+      if (newOrder.status === OrderStatus.PAID) return null; // Already processed
 
       // 2. Decrement product inventory
-      for (const item of order.items) {
+      for (const item of newOrder.items) {
         await tx.product.update({
           where: { id: item.productId },
           data: {
@@ -111,21 +113,42 @@ export class PaymentService {
       }
 
       // 3. Clear cart items
-      if (order.cartId) {
+      if (newOrder.cartId) {
         await tx.cartItem.deleteMany({
-          where: { cartId: order.cartId },
+          where: { cartId: newOrder.cartId },
         });
       }
 
       // 4. Update order status to PAID
-      await tx.order.update({
+      const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
           status: OrderStatus.PAID,
           paymentMethod: finalMethod,
         },
+        include: {
+          user: true,
+        },
       });
+
+      return updatedOrder;
     });
+
+    // Send WhatsApp notification outside the database transaction block
+    if (order) {
+      const customerName = order.user?.name || 'Customer';
+      const toPhone = `${order.customerCountryCode || '+91'}${order.customerPhone}`;
+
+      WhatsAppService.sendOrderConfirmation({
+        toPhone,
+        customerName,
+        orderNumber: order.orderNumber,
+        totalAmount: Number(order.totalAmount),
+        shippingAddress: order.shippingAddress || '',
+      }).catch((err: any) => {
+        console.error('Failed to trigger WhatsApp notification for online order:', err);
+      });
+    }
   }
 
   public static async verifySignature(data: {

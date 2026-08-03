@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/error';
 import { PaymentService } from './payment.service';
+import { WhatsAppService } from './whatsapp.service';
 import { PaymentMethod, OrderStatus } from '@prisma/client';
 
 export class OrderService {
@@ -119,6 +120,35 @@ export class OrderService {
         orderRefId: order.id,
       },
     });
+
+    // Send WhatsApp notification immediately for Cash on Delivery (COD) orders
+    if (paymentMethod === PaymentMethod.COD) {
+      let customerName = 'Customer';
+      if (userId) {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true },
+          });
+          if (user) {
+            customerName = user.name;
+          }
+        } catch (e) {
+          // Fallback to 'Customer'
+        }
+      }
+
+      const toPhone = `${customerCountryCode || '+91'}${customerPhone}`;
+      WhatsAppService.sendOrderConfirmation({
+        toPhone,
+        customerName,
+        orderNumber: order.orderNumber,
+        totalAmount: Number(order.totalAmount),
+        shippingAddress: shippingAddress || '',
+      }).catch((err: any) => {
+        console.error('Failed to trigger WhatsApp notification for COD order:', err);
+      });
+    }
 
     return {
       orderId: order.id,

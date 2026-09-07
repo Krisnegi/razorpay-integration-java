@@ -1,16 +1,38 @@
 # Dependencies
 node_modules/
+**/node_modules/
 
-# Build output
+# Java & Maven Build output
+target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+!target/classes/META-INF/
+
+# Next.js & Frontend build output
+.next/
 dist/
+out/
 
 # Environment & local secrets
 .env
+.env.local
+.env*.local
+application-local.yml
+**/application-local.yml
+src/main/resources/application-local.yml
 
 # OS & Log files
 .DS_Store
+Thumbs.db
 *.log
+*.tmp
 
 # IDE & Editor files
 .vscode/
 .idea/
+*.iws
+*.iml
+*.ipr
+.classpath
+.project
+.settings/

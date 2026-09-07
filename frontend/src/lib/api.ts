@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export const getCartId = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -52,12 +52,13 @@ const customFetch = async (endpoint: string, options: RequestInit = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'API request failed');
+    throw new Error(data.error || data.message || 'API request failed');
   }
 
   // Auto-persist cartId if returned in response
-  if (data.data?.cartId) {
-    setCartId(data.data.cartId);
+  const cartIdValue = data.cartId || data.data?.cartId;
+  if (cartIdValue) {
+    setCartId(cartIdValue);
   }
 
   return data;
@@ -84,7 +85,7 @@ export const fetchProducts = async (
 // --- Cart APIs ---
 export const fetchCart = async () => {
   const res = await customFetch('/cart');
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const addToCart = async (productId: number, quantity: number = 1) => {
@@ -92,29 +93,29 @@ export const addToCart = async (productId: number, quantity: number = 1) => {
     method: 'POST',
     body: JSON.stringify({ productId, quantity }),
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const updateCartItemQuantity = async (productId: number, quantity: number) => {
   const res = await customFetch(`/cart/items/${productId}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify({ quantity }),
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const removeCartItem = async (productId: number) => {
   const res = await customFetch(`/cart/items/${productId}`, {
     method: 'DELETE',
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const clearCart = async () => {
   const res = await customFetch('/cart', {
     method: 'DELETE',
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 // --- Orders & Checkout APIs ---
@@ -129,7 +130,7 @@ export const checkoutOrder = async (orderData: {
     method: 'POST',
     body: JSON.stringify(orderData),
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const verifyPayment = async (paymentData: {
@@ -141,7 +142,7 @@ export const verifyPayment = async (paymentData: {
     method: 'POST',
     body: JSON.stringify(paymentData),
   });
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };
 
 export const fetchMyOrders = async (page: number = 1, limit: number = 10) => {
@@ -161,10 +162,11 @@ export const registerUser = async (data: {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  if (res.data?.token) {
-    setAuthToken(res.data.token);
+  const result = res.data !== undefined ? res.data : res;
+  if (result?.token) {
+    setAuthToken(result.token);
   }
-  return res.data;
+  return result;
 };
 
 export const loginUser = async (data: { email: string; password: string }) => {
@@ -172,13 +174,14 @@ export const loginUser = async (data: { email: string; password: string }) => {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  if (res.data?.token) {
-    setAuthToken(res.data.token);
+  const result = res.data !== undefined ? res.data : res;
+  if (result?.token) {
+    setAuthToken(result.token);
   }
-  return res.data;
+  return result;
 };
 
 export const fetchProfile = async () => {
   const res = await customFetch('/auth/me');
-  return res.data;
+  return res.data !== undefined ? res.data : res;
 };

@@ -38,11 +38,20 @@ public class OrderService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @Transactional
-    public OrderResponseDto checkout(CheckoutRequest request, Integer userId) {
-        Cart cart = cartRepository.findById(request.getCartId())
-                .orElseThrow(() -> new AppException("Your cart is empty", HttpStatus.BAD_REQUEST));
+    public OrderResponseDto checkout(String headerCartId, CheckoutRequest request, Integer userId) {
+        String resolvedCartId = (headerCartId != null && !headerCartId.isBlank())
+                ? headerCartId
+                : request.getCartId();
 
-        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+        Cart cart = null;
+        if (resolvedCartId != null && !resolvedCartId.isBlank()) {
+            cart = cartRepository.findById(resolvedCartId).orElse(null);
+        }
+        if (cart == null && userId != null) {
+            cart = cartRepository.findByUserId(userId).orElse(null);
+        }
+
+        if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
             throw new AppException("Your cart is empty", HttpStatus.BAD_REQUEST);
         }
 
@@ -71,7 +80,7 @@ public class OrderService {
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .user(user)
-                .cartId(request.getCartId())
+                .cartId(cart.getId())
                 .customerEmail(request.getCustomerEmail())
                 .customerCountryCode(request.getCustomerCountryCode() != null ? request.getCustomerCountryCode() : "+91")
                 .customerPhone(request.getCustomerPhone())
@@ -101,7 +110,10 @@ public class OrderService {
                 product.setStock(Math.max(0, product.getStock() - cartItem.getQuantity()));
                 productRepository.save(product);
             }
-            cartItemRepository.deleteByCartId(request.getCartId());
+            cartItemRepository.deleteByCartId(cart.getId());
+            if (cart.getItems() != null) {
+                cart.getItems().clear();
+            }
         }
 
         // Create Payment record

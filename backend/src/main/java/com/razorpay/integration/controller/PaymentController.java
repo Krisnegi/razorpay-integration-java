@@ -1,5 +1,6 @@
 package com.razorpay.integration.controller;
 
+import com.razorpay.integration.dto.ApiResponse;
 import com.razorpay.integration.dto.CreatePaymentRequest;
 import com.razorpay.integration.dto.PaymentResponseDto;
 import com.razorpay.integration.dto.VerifyPaymentRequest;
@@ -24,15 +25,15 @@ public class PaymentController {
     private final PaymentRepository paymentRepository;
 
     @PostMapping("/create-order")
-    public ResponseEntity<PaymentResponseDto> createOrder(@Valid @RequestBody CreatePaymentRequest request) {
+    public ResponseEntity<ApiResponse<PaymentResponseDto>> createOrder(@Valid @RequestBody CreatePaymentRequest request) {
         PaymentResponseDto response = paymentService.createPayment(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return new ResponseEntity<>(ApiResponse.success(response), HttpStatus.CREATED);
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<Payment> verifyPayment(@Valid @RequestBody VerifyPaymentRequest request) {
+    public ResponseEntity<ApiResponse<Payment>> verifyPayment(@Valid @RequestBody VerifyPaymentRequest request) {
         Payment payment = paymentService.verifySignature(request);
-        return ResponseEntity.ok(payment);
+        return ResponseEntity.ok(ApiResponse.success(payment));
     }
 
     @PostMapping("/webhook")
@@ -45,10 +46,10 @@ public class PaymentController {
     }
 
     @GetMapping("/status/{orderId}")
-    public ResponseEntity<Payment> getPaymentStatus(@PathVariable String orderId) {
+    public ResponseEntity<ApiResponse<Payment>> getPaymentStatus(@PathVariable String orderId) {
         Payment payment = paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new AppException("Payment not found for orderId: " + orderId, HttpStatus.NOT_FOUND));
 
-        return ResponseEntity.ok(payment);
+        return ResponseEntity.ok(ApiResponse.success(payment));
     }
 }

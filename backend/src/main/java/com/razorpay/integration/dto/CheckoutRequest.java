@@ -9,7 +9,6 @@ import lombok.Data;
 @Data
 public class CheckoutRequest {
 
-    @NotBlank(message = "cartId is required")
     private String cartId;
 
     @NotBlank(message = "customerEmail is required")

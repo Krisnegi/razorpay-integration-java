@@ -96,9 +96,8 @@ public class CartService {
     }
 
     @Transactional
-    public CartResponse updateItemQuantity(String cartId, Integer productId, int quantity) {
-        Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new AppException("Cart not found", HttpStatus.NOT_FOUND));
+    public CartResponse updateItemQuantity(String cartId, Integer productId, int quantity, Integer userId) {
+        Cart cart = getOrCreateCart(cartId, userId);
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new AppException("Product with ID " + productId + " not found", HttpStatus.NOT_FOUND));
@@ -111,37 +110,50 @@ public class CartService {
             );
         }
 
-        CartItem existingItem = cartItemRepository.findByCartIdAndProductId(cartId, productId)
+        CartItem existingItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
                 .orElseThrow(() -> new AppException("Product is not in your cart", HttpStatus.NOT_FOUND));
 
-        existingItem.setQuantity(quantity);
-        cartItemRepository.save(existingItem);
+        if (quantity <= 0) {
+            if (cart.getItems() != null) {
+                cart.getItems().removeIf(item -> item.getId().equals(existingItem.getId()));
+            }
+            cartItemRepository.delete(existingItem);
+        } else {
+            existingItem.setQuantity(quantity);
+            cartItemRepository.save(existingItem);
+        }
 
-        Cart updatedCart = cartRepository.findById(cartId).orElse(cart);
+        Cart updatedCart = cartRepository.findById(cart.getId()).orElse(cart);
         return formatCartResponse(updatedCart);
     }
 
     @Transactional
-    public CartResponse removeItem(String cartId, Integer productId) {
-        CartItem existingItem = cartItemRepository.findByCartIdAndProductId(cartId, productId)
+    public CartResponse removeItem(String cartId, Integer productId, Integer userId) {
+        Cart cart = getOrCreateCart(cartId, userId);
+
+        CartItem existingItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
                 .orElseThrow(() -> new AppException("Product is not in your cart", HttpStatus.NOT_FOUND));
 
+        if (cart.getItems() != null) {
+            cart.getItems().removeIf(item -> item.getId().equals(existingItem.getId()));
+        }
         cartItemRepository.delete(existingItem);
 
-        Cart updatedCart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new AppException("Cart not found", HttpStatus.NOT_FOUND));
+        Cart updatedCart = cartRepository.findById(cart.getId()).orElse(cart);
         return formatCartResponse(updatedCart);
     }
 
     @Transactional
-    public CartResponse clearCart(String cartId) {
-        Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new AppException("Cart not found", HttpStatus.NOT_FOUND));
+    public CartResponse clearCart(String cartId, Integer userId) {
+        Cart cart = getOrCreateCart(cartId, userId);
 
-        cartItemRepository.deleteByCartId(cartId);
-        cart.getItems().clear();
+        cartItemRepository.deleteByCartId(cart.getId());
+        if (cart.getItems() != null) {
+            cart.getItems().clear();
+        }
 
-        return formatCartResponse(cart);
+        Cart updatedCart = cartRepository.findById(cart.getId()).orElse(cart);
+        return formatCartResponse(updatedCart);
     }
 
     public CartResponse formatCartResponse(Cart cart) {

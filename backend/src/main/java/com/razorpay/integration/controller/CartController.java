@@ -1,6 +1,7 @@
 package com.razorpay.integration.controller;
 
 import com.razorpay.integration.dto.AddToCartRequest;
+import com.razorpay.integration.dto.ApiResponse;
 import com.razorpay.integration.dto.CartResponse;
 import com.razorpay.integration.dto.UpdateCartItemRequest;
 import com.razorpay.integration.security.UserPrincipal;
@@ -30,57 +31,60 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<CartResponse> getCart(
+    public ResponseEntity<ApiResponse<CartResponse>> getCart(
             @RequestHeader(value = "x-cart-id", required = false) String headerCartId,
             @RequestParam(value = "cartId", required = false) String queryCartId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String cartId = resolveCartId(headerCartId, queryCartId, null);
         CartResponse response = cartService.getCart(cartId, getUserId(userPrincipal));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/items")
-    public ResponseEntity<CartResponse> addItem(
+    public ResponseEntity<ApiResponse<CartResponse>> addItem(
             @RequestHeader(value = "x-cart-id", required = false) String headerCartId,
             @Valid @RequestBody AddToCartRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String cartId = resolveCartId(headerCartId, null, request.getCartId());
         CartResponse response = cartService.addItem(cartId, request.getProductId(), request.getQuantity(), getUserId(userPrincipal));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PutMapping("/items/{productId}")
-    public ResponseEntity<CartResponse> updateItemQuantity(
+    @RequestMapping(value = "/items/{productId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(
             @PathVariable Integer productId,
             @RequestHeader(value = "x-cart-id", required = false) String headerCartId,
             @RequestParam(value = "cartId", required = false) String queryCartId,
-            @Valid @RequestBody UpdateCartItemRequest request) {
+            @Valid @RequestBody UpdateCartItemRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String cartId = resolveCartId(headerCartId, queryCartId, null);
-        CartResponse response = cartService.updateItemQuantity(cartId, productId, request.getQuantity());
-        return ResponseEntity.ok(response);
+        CartResponse response = cartService.updateItemQuantity(cartId, productId, request.getQuantity(), getUserId(userPrincipal));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @DeleteMapping("/items/{productId}")
-    public ResponseEntity<CartResponse> removeItem(
+    public ResponseEntity<ApiResponse<CartResponse>> removeItem(
             @PathVariable Integer productId,
             @RequestHeader(value = "x-cart-id", required = false) String headerCartId,
-            @RequestParam(value = "cartId", required = false) String queryCartId) {
+            @RequestParam(value = "cartId", required = false) String queryCartId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String cartId = resolveCartId(headerCartId, queryCartId, null);
-        CartResponse response = cartService.removeItem(cartId, productId);
-        return ResponseEntity.ok(response);
+        CartResponse response = cartService.removeItem(cartId, productId, getUserId(userPrincipal));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @DeleteMapping
-    public ResponseEntity<CartResponse> clearCart(
+    public ResponseEntity<ApiResponse<CartResponse>> clearCart(
             @RequestHeader(value = "x-cart-id", required = false) String headerCartId,
-            @RequestParam(value = "cartId", required = false) String queryCartId) {
+            @RequestParam(value = "cartId", required = false) String queryCartId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String cartId = resolveCartId(headerCartId, queryCartId, null);
-        CartResponse response = cartService.clearCart(cartId);
-        return ResponseEntity.ok(response);
+        CartResponse response = cartService.clearCart(cartId, getUserId(userPrincipal));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
